@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
@@ -37,8 +40,28 @@ func NewServer() *negroni.Negroni {
 	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"})
 	allowedOrigins := handlers.AllowedOrigins([]string{"*"})
 	n.UseHandler(handlers.CORS(allowedHeaders, allowedMethods, allowedOrigins)(mx))
+
+
 	return n
 }
+
+func listenToKinesis(){
+
+	stream := flag.String("stream", "RealTimeDataStream", "Stream Name")
+	flag.Parse()
+
+	sess := session.Must(
+		session.NewSessionWithOptions(
+			session.Options{
+				SharedConfigState: session.SharedConfigEnable,
+			},
+		),
+	)
+
+	pollShards(kinesis.New(sess), stream)
+
+}
+
 
 func initRoutes(mx *mux.Router, formatter *render.Render) {
 	mx.HandleFunc("/ping", pingHandler(formatter)).Methods("GET")
@@ -54,7 +77,7 @@ func socketHandler(formatter *render.Render) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 
 		fmt.Println("entered...",req.URL);
-		serveWsClients(w, req)
+		serveWsClients(pool,w, req)
 
 
 
@@ -117,6 +140,41 @@ func getRequestedProfile(formatter *render.Render) http.HandlerFunc{
 
 
 	}
+}
+
+func getProfileById(deviceID string) interface{}{
+
+
+	glog.Info("getRequestedProfile: profileID", deviceID)
+
+	session, err := mgo.Dial(mongodbServer)
+	if err != nil {
+		panic(err)
+	}
+	defer session.Close()
+	session.SetMode(mgo.Monotonic, true)
+	glog.Info("getRequestedProfile: MongoDB connection success")
+	c := session.DB(mongodbDatabase).C(ProfileCollection)
+
+	var jsonProfile Profile
+	profileData := make(map[string]Profile)
+	profileDataBySquad := make(map[string]interface{})
+
+	//query := bson.M{"deviceId": profileId}
+	err = c.Find(bson.M{"deviceId": deviceID}).All(&jsonProfile)
+	if err!= nil{
+		panic(err)
+	}
+
+	profileData[jsonProfile.DeviceId] = jsonProfile
+	profileDataBySquad[jsonProfile.Squad] = profileData
+
+	glog.Info("getRequestedProfile: Data returned from DB ",jsonProfile)
+
+	glog.Info("getRequestedProfile: Parsing by squad value", profileDataBySquad)
+
+	return profileDataBySquad
+
 }
 
 func getAllProfile(formatter *render.Render) http.HandlerFunc{
