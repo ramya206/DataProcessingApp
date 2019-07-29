@@ -12,15 +12,27 @@ import (
 
 var clients = make(map[*websocket.Conn]bool)
 var devices = make(map[string]*FireFighter)
-var broadcast = make(chan SensorData)
-var pool *MonitorPool
+var broadcast = make(chan StreamToSocket)
+//var pool *MonitorPool
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
 
-func serveWsClients(Pool *Pool, w http.ResponseWriter, r *http.Request) {
+func newPool() *MonitorPool {
+	return &MonitorPool{
+		Clients: make(map[*websocket.Conn]bool  ), //clients connected using ws
+		broadcast: make( chan StreamToSocket  ) ,    //channel to send sensor data to clients
+		alert: make(chan Alert),
+		Devices : make(map[string]bool   ),      //Devices sending real time data to server..
+		DeviceMap : make(map[string]*FireFighter),
+
+	}
+}
+
+
+func serveWsClients(Pool *MonitorPool, w http.ResponseWriter, r *http.Request) {
 
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
@@ -30,8 +42,9 @@ func serveWsClients(Pool *Pool, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-	clients[conn] = true
-	pool = Pool
+
+	//pool = Pool
+	Pool.Clients[conn] = true
 
 
 
@@ -45,12 +58,12 @@ func handleStreamData() {
 		// Grab the next message from the broadcast channel
 		msg := <-pool.broadcast
 		// Send it out to every client that is currently connected
-		for client := range clients {
+		for client := range pool.Clients {
 			err := client.WriteJSON(msg)
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
-				delete(clients, client)
+				delete(pool.Clients, client)
 			}
 		}
 	}
@@ -60,7 +73,9 @@ func handleDevices() {
 	for {
 		// Grab the next message from the broadcast channel
 		msg := <-pool.broadcast  //**** create device broadcast channel
-		var devId = msg.DeviceId
+		var sensorData SensorData
+		sensorData = msg.Data
+		var devId = sensorData.DeviceId
 		if _,ok := pool.DeviceMap[devId]; !ok {
 			device := &FireFighter{Pool : pool, Data : make(chan SensorData), deviceId :  devId}
 			//device.Pool.Devices[devId] = true
@@ -70,11 +85,27 @@ func handleDevices() {
 
 		}
 		pool.Devices[devId] = true
-		pool.DeviceMap[devId].Data <- msg
+		pool.DeviceMap[devId].Data <- sensorData
 
 	}
 }
 
+
+func handleAlerts() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-pool.alert  //**** create device broadcast channel
+		for client := range pool.Clients {
+			err := client.WriteJSON(msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(pool.Clients, client)
+			}
+		}
+
+	}
+}
 
 
 func (device *FireFighter) alertsGenerator(){
@@ -82,7 +113,11 @@ func (device *FireFighter) alertsGenerator(){
 	var timerBuffer = 60; // in function of samples received (approx 1 sample/sec)
 	var counter = 0;
 	var backToNormality = false;
+	type heartbeat struct{
+		DeviceId string
 
+	}
+	profileDataBySquad := getProfileById(device.deviceId)
 	for {
 		msg := <-device.Data
 
@@ -95,14 +130,31 @@ func (device *FireFighter) alertsGenerator(){
 
 		if heartRateValue >= 100 && counter == 0 {
 			backToNormality = true;
+
+
+			alert := Alert{
+				Type:"HeartBeatAlert",
+				SensorData : msg,
+				Data: profileDataBySquad,
+				Location:msg.Location,
+
+			}
 			//sendAlertMessage to websocket clients
+			pool.alert<-alert
 			counter++;
 		}
 
 		if (backToNormality && heartRateValue < 100 && counter == 0){
 
 			//send safety message to websocket clients
+			alert := Alert{
+				Type:"HeartBeatNormal",
+				SensorData : msg,
+				Data: profileDataBySquad,
+				Location:msg.Location,
 
+			}
+			pool.alert<-alert
 			backToNormality = false;
 			counter = 0;
 		}
@@ -143,36 +195,5 @@ for devId,_ := range pool.Devices {
 //write logic to kill go routine
 }
 
-func (h *Pool) run() {
-	fmt.Println("Client Pool started..")
-	for {
-		select {
-		case client := <-h.register:
-			h.clients[client.Clientid] = client
-			fmt.Println("Client Registered..")
-			var mesg Message
-			mesg.Type = "OnlineUsers"
-			mesg.Users = Users
 
-
-		case client := <-h.unregister:
-			if _, ok := h.clients[client.Clientid]; ok {
-				delete(h.clients, client.Clientid)
-				fmt.Println("Client Unregistered..",h.clients)
-				close(client.send)
-			}
-			fmt.Println("Client Unregistered..")
-		case message := <-h.broadcast:
-			fmt.Println("Entered broadcast channel..",message)
-			for client := range h.clients {
-				h.clients[client].send <- message
-				fmt.Println("Sending mesg to client channel..",client)
-
-				//close(client.send)
-				//delete(h.clients, client)
-			}
-
-		}
-	}
-}
 
