@@ -36,9 +36,22 @@ type SensorData struct {
 
 }
 
+type StreamToSocket struct {
+
+	Type string
+	Data SensorData
+}
+
 type Location struct {
 	Latitude string
 	Longitude string
+}
+
+type Alert struct {
+	Type string
+	Data interface{}
+	SensorData SensorData
+	Location Location
 }
 
 
@@ -56,7 +69,8 @@ type FireFighter struct {
 type MonitorPool struct {
 
 	Clients map[*websocket.Conn]bool   //clients connected using ws
-	broadcast chan SensorData       //channel to send sensor data to clients
+	broadcast chan StreamToSocket       //channel to send sensor data to clients
+	alert chan Alert
 	Devices map[string]bool         //Devices sending real time data to server..
 	DeviceMap map[string]*FireFighter
 
