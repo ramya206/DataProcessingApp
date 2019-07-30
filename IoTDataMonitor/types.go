@@ -54,6 +54,14 @@ type Alert struct {
 	Location Location
 }
 
+type Client struct {
+	Pool *MonitorPool
+	// The websocket connection.
+	conn *websocket.Conn
+	// Buffered channel of outbound messages.
+	send chan StreamToSocket
+}
+
 
 type FireFighter struct {
 
@@ -69,9 +77,11 @@ type FireFighter struct {
 type MonitorPool struct {
 
 	Clients map[*websocket.Conn]bool   //clients connected using ws
+
 	broadcast chan StreamToSocket       //channel to send sensor data to clients
 	alert chan Alert
 	Devices map[string]bool         //Devices sending real time data to server..
 	DeviceMap map[string]*FireFighter
-
+	DeviceRegister chan StreamToSocket
+	send chan interface{}
 }
