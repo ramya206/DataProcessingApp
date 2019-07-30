@@ -25,9 +25,10 @@ func newPool() *MonitorPool {
 		Clients: make(map[*websocket.Conn]bool  ), //clients connected using ws
 		broadcast: make( chan StreamToSocket  ) ,    //channel to send sensor data to clients
 		alert: make(chan Alert),
+		DeviceRegister : make(chan StreamToSocket),
 		Devices : make(map[string]bool   ),      //Devices sending real time data to server..
 		DeviceMap : make(map[string]*FireFighter),
-
+		send : make(chan interface{}),
 	}
 }
 
@@ -48,7 +49,49 @@ func serveWsClients(Pool *MonitorPool, w http.ResponseWriter, r *http.Request) {
 
 
 
+	// client.Pool.broadcast <- mesg
+//getAllProfile
 
+
+
+}
+
+
+func (client *Client) handlesendtOthisclient(){
+
+}
+
+
+
+func (pool *MonitorPool) run() {
+	fmt.Println("Client Pool started..")
+	for {
+		select {
+		case msg := <-pool.broadcast:
+			pool.send<-msg
+
+
+
+		case msg := <-pool.DeviceRegister:
+			var sensorData SensorData
+			sensorData = msg.Data
+			var devId = sensorData.DeviceId
+			if _,ok := pool.DeviceMap[devId]; !ok {
+				device := &FireFighter{Pool : pool, Data : make(chan SensorData), deviceId :  devId}
+				//device.Pool.Devices[devId] = true
+				pool.DeviceMap[devId] = device
+				go device.alertsGenerator()
+				//go connectivityMonitor()
+
+			}
+			pool.Devices[devId] = true
+			pool.DeviceMap[devId].Data <- sensorData
+			//fmt.Println("Client Unregistered..")
+		case msg := <-pool.alert:
+			pool.send<-msg
+
+		}
+	}
 }
 
 
@@ -81,7 +124,7 @@ func handleDevices() {
 			//device.Pool.Devices[devId] = true
 			pool.DeviceMap[devId] = device
 			go device.alertsGenerator()
-			go connectivityMonitor()
+
 
 		}
 		pool.Devices[devId] = true
@@ -91,10 +134,10 @@ func handleDevices() {
 }
 
 
-func handleAlerts() {
+func (pool *MonitorPool) handleSender() {
 	for {
 		// Grab the next message from the broadcast channel
-		msg := <-pool.alert  //**** create device broadcast channel
+		msg := <-pool.send  //**** create device broadcast channel
 		for client := range pool.Clients {
 			err := client.WriteJSON(msg)
 			if err != nil {
@@ -164,7 +207,7 @@ func (device *FireFighter) alertsGenerator(){
 }
 
 
-func connectivityMonitor(){
+func (pool *MonitorPool) connectivityMonitor(){
 
 
 
@@ -187,7 +230,7 @@ for devId,_ := range pool.Devices {
 }
 
 //	mutex.Unlock()
-	time.Sleep(60 * time.Second)
+	time.Sleep(30 * time.Second)
 
 }
 
