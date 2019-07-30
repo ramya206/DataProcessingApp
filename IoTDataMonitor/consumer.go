@@ -103,6 +103,7 @@ func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
 			}
 
 			pool.broadcast<-StreamToSocket
+			pool.DeviceRegister<-StreamToSocket
 			fmt.Print(string(prettyJSON.Bytes()))
 		}
 
