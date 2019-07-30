@@ -12,7 +12,9 @@ func main() {
 	}
 
 	listenToKinesis();
-//	go pool.run()
+	go pool.run()
+	go pool.handleSender()
+	go pool.connectivityMonitor()
 
 	server := NewServer()
 	server.Run(":" + port)
