@@ -9,11 +9,11 @@ import (
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
-	"github.com/satori/go.uuid"
+	//"github.com/satori/go.uuid"
 	"github.com/unrolled/render"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"time"
+	//"time"
 
 	//"github.com/fatih/structs"
 
@@ -28,6 +28,7 @@ var mongodbServer = "localhost"
 var mongodbDatabase = "iCare"
 var ProfileCollection = "ProfileData"
 var Unread_Messages = "UnreadCollection"
+
 
 func NewServer() *negroni.Negroni {
 	formatter := render.New(render.Options{
@@ -47,7 +48,7 @@ func NewServer() *negroni.Negroni {
 
 func listenToKinesis(){
 
-	stream := flag.String("stream", "RealTimeDataStream", "Stream Name")
+	stream := flag.String("stream", "DemoDataStream", "Stream Name")
 	flag.Parse()
 
 	sess := session.Must(
