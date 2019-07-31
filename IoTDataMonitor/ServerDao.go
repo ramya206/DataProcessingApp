@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/codegangsta/negroni"
@@ -58,8 +59,8 @@ func listenToKinesis(){
 			},
 		),
 	)
-
-	pollShards(kinesis.New(sess), stream)
+	fmt.Println("Polling shards...");
+	go pollShards(kinesis.New(sess,aws.NewConfig().WithRegion("us-east-1")), stream)
 
 }
 
@@ -162,8 +163,9 @@ func getProfileById(deviceID string) interface{}{
 	profileDataBySquad := make(map[string]interface{})
 
 	//query := bson.M{"deviceId": profileId}
-	err = c.Find(bson.M{"deviceId": deviceID}).All(&jsonProfile)
+	err = c.Find(bson.M{"DeviceId": deviceID}).One(&jsonProfile)
 	if err!= nil{
+		panic(err)
 		panic(err)
 	}
 
