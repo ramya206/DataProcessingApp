@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
@@ -43,6 +42,7 @@ func pollShards(client *kinesis.Kinesis, stream *string) {
 	}
 
 	for _, shard := range streamDescription.StreamDescription.Shards {
+		fmt.Println("shard.......",shard);
 		go getRecords(client, stream, shard.ShardId)
 		wg.Add(1)
 	}
@@ -51,6 +51,10 @@ func pollShards(client *kinesis.Kinesis, stream *string) {
 }
 
 func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
+
+
+	fmt.Println("Get records........",client);
+
 	shardIteratorRes, err := client.GetShardIterator(
 		&kinesis.GetShardIteratorInput{
 			StreamName:        stream,
@@ -69,6 +73,8 @@ func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
 
 
 	for range ticker.C {
+
+		fmt.Println("Get records.polling every sec.......");
 		records, err := client.GetRecords(
 			&kinesis.GetRecordsInput{
 				ShardIterator: shardIterator,
@@ -81,30 +87,46 @@ func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
 		}
 
 		for _, record := range records.Records {
-			var prettyJSON bytes.Buffer
 
-			//fmt.Print(string(record.Data))
+			RawStringData := string(record.Data)
 
-			if err := json.Indent(&prettyJSON, record.Data, "", "    "); err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
+			fmt.Println("Get records...record.data......",string(record.Data));
 
+			var rawSensorData RawSensorData
+			json.Unmarshal([]byte(RawStringData), &rawSensorData)
+
+			fmt.Println("the Raw data is ",rawSensorData)
 
 			var dataFromStream SensorData
-			err := json.Unmarshal(record.Data,&dataFromStream)
-			if err!=nil {
+			dataFromStream = rawSensorData.State.Reported
+
+			var n json.Number
+			n = rawSensorData.Timestamp
+			numToInt,err := n.Int64()
+			if err!= nil {
 				panic(err)
-				fmt.Print("getRecords: Error in Json unmarshal ",err)
 			}
+
+			tm := time.Unix(numToInt,0)
+			fmt.Println(tm)
+			dataFromStream.Time = tm
+			fmt.Print("Hello prettyyyy the data from stream.....",dataFromStream)
+
+
 			StreamToSocket := StreamToSocket{
 				Type:"RealTime",
 				Data: dataFromStream,
 			}
 
+			b, err := json.Marshal(StreamToSocket)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			fmt.Println("The final marshalled Json is......",string(b))
+
 			pool.broadcast<-StreamToSocket
 			pool.DeviceRegister<-StreamToSocket
-			fmt.Print(string(prettyJSON.Bytes()))
 		}
 
 		shardIterator = records.NextShardIterator
