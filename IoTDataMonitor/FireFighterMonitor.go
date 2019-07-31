@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -13,7 +14,6 @@ import (
 var clients = make(map[*websocket.Conn]bool)
 var devices = make(map[string]*FireFighter)
 var broadcast = make(chan StreamToSocket)
-//var pool *MonitorPool
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -57,17 +57,12 @@ func serveWsClients(Pool *MonitorPool, w http.ResponseWriter, r *http.Request) {
 }
 
 
-func (client *Client) handlesendtOthisclient(){
-
-}
-
-
-
 func (pool *MonitorPool) run() {
 	fmt.Println("Client Pool started..")
 	for {
 		select {
 		case msg := <-pool.broadcast:
+			fmt.Println("Message to websocket ",msg)
 			pool.send<-msg
 
 
@@ -77,6 +72,7 @@ func (pool *MonitorPool) run() {
 			sensorData = msg.Data
 			var devId = sensorData.DeviceId
 			if _,ok := pool.DeviceMap[devId]; !ok {
+				fmt.Println("the Device not registered......")
 				device := &FireFighter{Pool : pool, Data : make(chan SensorData), deviceId :  devId}
 				//device.Pool.Devices[devId] = true
 				pool.DeviceMap[devId] = device
@@ -84,6 +80,7 @@ func (pool *MonitorPool) run() {
 				//go connectivityMonitor()
 
 			}
+			fmt.Println("the Device already registered......")
 			pool.Devices[devId] = true
 			pool.DeviceMap[devId].Data <- sensorData
 			//fmt.Println("Client Unregistered..")
@@ -138,8 +135,16 @@ func (pool *MonitorPool) handleSender() {
 	for {
 		// Grab the next message from the broadcast channel
 		msg := <-pool.send  //**** create device broadcast channel
+
+		sensorData, err := json.Marshal(msg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Println("The final marshalled Json to socket!!!......",string(sensorData))
+
 		for client := range pool.Clients {
-			err := client.WriteJSON(msg)
+			err := client.WriteJSON(sensorData)
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
@@ -163,10 +168,11 @@ func (device *FireFighter) alertsGenerator(){
 	profileDataBySquad := getProfileById(device.deviceId)
 	for {
 		msg := <-device.Data
+		var heartRateValue float64
 
-		heartRateValue, err := strconv.ParseFloat(msg.Temperature, 64)
-		if err!= nil {
-			panic(err)
+		if msg.Temperature!="" {
+			heartRateValue, _ = strconv.ParseFloat(msg.Temperature, 64)
+
 		}
 		if backToNormality {counter++}
 		if counter == timerBuffer{counter = 0}
@@ -183,6 +189,7 @@ func (device *FireFighter) alertsGenerator(){
 
 			}
 			//sendAlertMessage to websocket clients
+			fmt.Println("the Alert :",alert)
 			pool.alert<-alert
 			counter++;
 		}
@@ -230,7 +237,7 @@ for devId,_ := range pool.Devices {
 }
 
 //	mutex.Unlock()
-	time.Sleep(30 * time.Second)
+	time.Sleep(60 * time.Second)
 
 }
 
