@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"time"
 )
@@ -15,24 +16,36 @@ type Profile struct {
 	Image string	`bson:"Image,omitempty" json:"Image,omitempty"`
 }
 
+type RawSensorData struct{
+	State State	`json:"state,omitempty"`
+	Metadata string	`json:"metadata,omitempty"`
+	Version string	`json:"version,omitempty"`
+	Timestamp json.Number	`json:"timestamp,omitempty,Number"`
+	ClientToken string	`json:"clientToken,omitempty"`
+}
+
+type State struct {
+	Reported SensorData  `json:"reported,omitempty"`
+}
+
 type SensorData struct {
 
-	DeviceId string
-	Location Location
-	Temperature string
-	Humidity string
-	Pressure string
-	Proximity string
-	Acc_x string
-	Acc_y string
-	Acc_z string
-	Gyr_x string
-	Gyr_y string
-	Gyr_z string
-	Mag_x string
-	Mag_y string
-	Mag_z string
-	Time time.Time
+	DeviceId string 	`json:"deviceId,omitempty"`
+	Location Location	`json:"location,omitempty"`
+	Temperature string	`json:"temperature,omitempty"`
+	Humidity string 	`json:"humidity,omitempty"`
+	Pressure string		`json:"pressure,omitempty"`
+	Proximity string	`json:"proximity,omitempty"`
+	Acc_x string	`json:"acc_x,omitempty"`
+	Acc_y string	`json:"acc_y,omitempty"`
+	Acc_z string	`json:"acc_z,omitempty"`
+	Gyr_x string	`json:"gyr_x,omitempty"`
+	Gyr_y string	`json:"gyr_y,omitempty"`
+	Gyr_z string	`json:"gyr_z,omitempty"`
+	Mag_x string	`json:"mag_x,omitempty"`
+	Mag_y string	`json:"mag_y,omitempty"`
+	Mag_z string	`json:"mag_z,omitempty"`
+	Time time.Time	`json:"time,omitempty"`
 
 }
 
