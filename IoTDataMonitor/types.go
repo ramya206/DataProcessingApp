@@ -91,7 +91,7 @@ type MonitorPool struct {
 
 	Clients map[*websocket.Conn]bool   //clients connected using ws
 
-	broadcast chan StreamToSocket       //channel to send sensor data to clients
+	broadcast chan interface{}       //channel to send sensor data to clients
 	alert chan Alert
 	Devices map[string]bool         //Devices sending real time data to server..
 	DeviceMap map[string]*FireFighter
