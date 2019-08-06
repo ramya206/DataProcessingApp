@@ -110,7 +110,7 @@ func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
 			tm := time.Unix(numToInt,0)
 			fmt.Println(tm)
 			dataFromStream.Time = tm
-			fmt.Print("Hello prettyyyy the data from stream.....",dataFromStream)
+			fmt.Println("Hello prettyyyy the data from stream.....",dataFromStream)
 
 
 			StreamToSocket := StreamToSocket{
@@ -125,7 +125,7 @@ func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
 			}
 			fmt.Println("The final marshalled Json is......",string(b))
 
-			pool.broadcast<-StreamToSocket
+			pool.broadcast<-b
 			pool.DeviceRegister<-StreamToSocket
 		}
 
