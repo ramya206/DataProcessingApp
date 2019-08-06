@@ -23,7 +23,7 @@ var upgrader = websocket.Upgrader{
 func newPool() *MonitorPool {
 	return &MonitorPool{
 		Clients: make(map[*websocket.Conn]bool  ), //clients connected using ws
-		broadcast: make( chan StreamToSocket  ) ,    //channel to send sensor data to clients
+		broadcast: make( chan interface{}  ) ,    //channel to send sensor data to clients
 		alert: make(chan Alert),
 		DeviceRegister : make(chan StreamToSocket),
 		Devices : make(map[string]bool   ),      //Devices sending real time data to server..
@@ -39,21 +39,19 @@ func serveWsClients(Pool *MonitorPool, w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		fmt.Println(err)
 		log.Println(err)
 		return
 	}
-	defer conn.Close()
+	//defer conn.Close()
 
 	//pool = Pool
 	Pool.Clients[conn] = true
-
-
-
+	fmt.Println("connection is ",conn)
+		jsonProfiles := getAllUserProfiles()
+		Pool.broadcast<-jsonProfiles
 	// client.Pool.broadcast <- mesg
 //getAllProfile
-
-
-
 }
 
 
@@ -98,8 +96,9 @@ func handleStreamData() {
 		// Grab the next message from the broadcast channel
 		msg := <-pool.broadcast
 		// Send it out to every client that is currently connected
+		fmt.Println(msg)
 		for client := range pool.Clients {
-			err := client.WriteJSON(msg)
+			err := client.WriteJSON("Test")
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
@@ -112,7 +111,7 @@ func handleStreamData() {
 func handleDevices() {
 	for {
 		// Grab the next message from the broadcast channel
-		msg := <-pool.broadcast  //**** create device broadcast channel
+		msg := <-pool.DeviceRegister  //**** create device broadcast channel
 		var sensorData SensorData
 		sensorData = msg.Data
 		var devId = sensorData.DeviceId
@@ -144,7 +143,7 @@ func (pool *MonitorPool) handleSender() {
 		fmt.Println("The final marshalled Json to socket!!!......",string(sensorData))
 
 		for client := range pool.Clients {
-			err := client.WriteJSON(sensorData)
+			err := client.WriteJSON(msg)
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
