@@ -88,35 +88,77 @@ func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
 
 		for _, record := range records.Records {
 
+			//fmt.Println("The .raw data is.....",record.Data);
+
 			RawStringData := string(record.Data)
 
-			fmt.Println("Get records...record.data......",string(record.Data));
+			fmt.Println("Get records...record.data......",RawStringData);
 
-			var rawSensorData RawSensorData
-			json.Unmarshal([]byte(RawStringData), &rawSensorData)
+			//fmt.Println("the Temperature is.....",string(record.Data.State.Reported.Temperature))
 
-			fmt.Println("the Raw data is ",rawSensorData)
 
-			var dataFromStream SensorData
-			dataFromStream = rawSensorData.State.Reported
-
-			var n json.Number
-			n = rawSensorData.Timestamp
-			numToInt,err := n.Int64()
-			if err!= nil {
+			bytes, err := json.Marshal(RawStringData)
+			if err != nil {
 				panic(err)
 			}
 
-			tm := time.Unix(numToInt,0)
-			fmt.Println(tm)
-			dataFromStream.Time = tm
-			fmt.Println("Hello prettyyyy the data from stream.....",dataFromStream)
+			fmt.Println("Bytessss ",bytes)
+
+			var rawSensorData RawSensorData
+			var locationData LocationData
+			json.Unmarshal(record.Data, &locationData)
+
+			fmt.Println("the Raw data is ",locationData)
+
+			var dataFromStream SensorData
+		//	dataFromStream.Temperature = string(rawSensorData.State.Reported.Temperature)
+			dataFromStream = rawSensorData.State.Reported
+			fmt.Println("DATA FROM STREAM.....",dataFromStream)
+
+			//dataFromStream = rawSensorData.State.Reported
+
+
+			//var n json.Number
+			//n = rawSensorData.Timestamp
+			//numToInt,err := n.Int64()
+			//if err!= nil {
+			//	panic(err)
+			//}
+
+			//tm := time.Unix(numToInt,0)
+			//fmt.Println(tm)
+			//dataFromStream.Time = tm
+			//fmt.Println("Hello prettyyyy the data from stream.....",dataFromStream)
+
+	loc := Location{
+	Latitude: locationData.Latitude,
+	Longitude: locationData.Longitude,
+	}
+			dataFromStream.Location = loc
+			dataFromStream.Altitude = locationData.Altitude
+			dataFromStream.Status="good"
+			dataFromStream.Squad="id 0"
+			dataFromStream.DeviceId="id 0"
+			//var mapdata= make(map[string]int)
+	var realDevMap = make(map[string]SensorData)
+			fmt.Println("data from stream",dataFromStream)
+			realDevMap["id 0"] = dataFromStream
+
 
 
 			StreamToSocket := StreamToSocket{
 				Type:"RealTime",
+				Data: realDevMap,
+			}
+
+			StreamToSocket1 := StreamToSocket1{
+				Type:"RealTime",
 				Data: dataFromStream,
 			}
+			///latlongToSocket := StreamToSocketLatLong{
+				//Type:"RealTime",
+				//Data: locationData,
+			//}
 
 			b, err := json.Marshal(StreamToSocket)
 			if err != nil {
@@ -126,7 +168,7 @@ func getRecords(client *kinesis.Kinesis, stream *string, shardID *string) {
 			fmt.Println("The final marshalled Json is......",string(b))
 
 			pool.broadcast<-b
-			pool.DeviceRegister<-StreamToSocket
+			pool.DeviceRegister<-StreamToSocket1
 		}
 
 		shardIterator = records.NextShardIterator
