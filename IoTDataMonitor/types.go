@@ -13,6 +13,7 @@ type Profile struct {
 	Age string		`bson:"Age,omitempty" json:"Age,omitempty"`
 	Squad string	`bson:"Squad,omitempty" json:"Squad,omitempty"`
 	Status string	`bson:"Status,omitempty" json:"Status,omitempty"`
+	Key string		`bson:"Key,omitempty" json:"key,omitempty"`
 	Image string	`bson:"Image,omitempty" json:"Image,omitempty"`
 }
 
@@ -28,11 +29,22 @@ type State struct {
 	Reported SensorData  `json:"reported,omitempty"`
 }
 
+
+type LocationData struct{
+
+	Latitude	json.Number `json:"latitude,omitempty,Number"`
+	Longitude	json.Number `json:"longitude,omitempty,Number"`
+	Altitude 	json.Number `json:"altitude (m),omitempty,Number"`
+	time		interface{} 	`json:"time utc,omitempty"`
+
+}
+
+
 type SensorData struct {
 
 	DeviceId string 	`json:"deviceId,omitempty"`
 	Location Location	`json:"location,omitempty"`
-	Temperature string	`json:"temperature,omitempty"`
+	Temperature json.Number	`json:"temperature,omitempty,Number"`
 	Humidity string 	`json:"humidity,omitempty"`
 	Pressure string		`json:"pressure,omitempty"`
 	Proximity string	`json:"proximity,omitempty"`
@@ -46,18 +58,34 @@ type SensorData struct {
 	Mag_y string	`json:"mag_y,omitempty"`
 	Mag_z string	`json:"mag_z,omitempty"`
 	Time time.Time	`json:"time,omitempty"`
+	Squad string `json:"squad,omitempty"`
+	Status string `json:"status,omitempty"`
+
+	Altitude json.Number
 
 }
 
 type StreamToSocket struct {
 
 	Type string
+	Data map[string]SensorData
+}
+
+type StreamToSocket1 struct {
+
+	Type string
 	Data SensorData
 }
 
+type StreamToSocketLatLong struct {
+
+	Type string
+	Data LocationData
+}
+
 type Location struct {
-	Latitude string
-	Longitude string
+	Latitude json.Number	`json:"lat,omitempty"`
+	Longitude json.Number	`json:"lng,omitempty"`
 }
 
 type Alert struct {
@@ -95,6 +123,6 @@ type MonitorPool struct {
 	alert chan Alert
 	Devices map[string]bool         //Devices sending real time data to server..
 	DeviceMap map[string]*FireFighter
-	DeviceRegister chan StreamToSocket
+	DeviceRegister chan StreamToSocket1
 	send chan interface{}
 }
