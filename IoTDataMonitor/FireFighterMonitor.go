@@ -6,7 +6,6 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -25,7 +24,7 @@ func newPool() *MonitorPool {
 		Clients: make(map[*websocket.Conn]bool  ), //clients connected using ws
 		broadcast: make( chan interface{}  ) ,    //channel to send sensor data to clients
 		alert: make(chan Alert),
-		DeviceRegister : make(chan StreamToSocket),
+		DeviceRegister : make(chan StreamToSocket1),
 		Devices : make(map[string]bool   ),      //Devices sending real time data to server..
 		DeviceMap : make(map[string]*FireFighter),
 		send : make(chan interface{}),
@@ -170,7 +169,10 @@ func (device *FireFighter) alertsGenerator(){
 		var heartRateValue float64
 
 		if msg.Temperature!="" {
-			heartRateValue, _ = strconv.ParseFloat(msg.Temperature, 64)
+			temp := msg.Temperature
+			//data.(json.Number).Float64()
+			heartRateValue,_  = temp.Float64()
+				//strconv.ParseFloat(msg.Temperature, 64)
 
 		}
 		if backToNormality {counter++}
