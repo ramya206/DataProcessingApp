@@ -166,7 +166,7 @@ func getProfileById(deviceID string) interface{}{
 	err = c.Find(bson.M{"DeviceId": deviceID}).One(&jsonProfile)
 	if err!= nil{
 		panic(err)
-		panic(err)
+		//panic(err)
 	}
 
 	profileData[jsonProfile.DeviceId] = jsonProfile
